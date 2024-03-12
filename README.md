@@ -103,7 +103,8 @@ To this end, this provider supports the following extra specs schema:
                 "description": "A SSH public key"
             }
         }
-    }
+    },
+	"additionalProperties": false
 }
 ```
 

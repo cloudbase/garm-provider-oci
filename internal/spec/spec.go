@@ -25,16 +25,63 @@ import (
 	"github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm-provider-oci/config"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 const (
 	defaultMemoryAllocation float32 = 4
 	defaultOcpusAllocation  float32 = 1
 	defaultBootVolumeSize   int64   = 255
+	jsonSchema              string  = `
+		{
+			"$schema": "http://cloudbase.it/garm-provider-oci/schemas/extra_specs#",
+			"type": "object",
+			"properties": {
+				"ocpus": {
+					"type": "number",
+					"description": "Number of OCPUs"
+				},
+				"memory_in_gbs": {
+					"type": "number",
+					"description": "Memory in GBs"
+				},
+				"boot_volume_size": {
+					"type": "number",
+					"description": "Boot volume size in GB"
+				},
+				"ssh_public_keys": {
+					"type": "array",
+					"description": "List of SSH public keys",
+					"items": {
+						"type": "string",
+						"description": "A SSH public key"
+					}
+				}
+			},
+			"additionalProperties": false
+		}
+	`
 )
+
+func jsonSchemaValidation(schema json.RawMessage) error {
+	schemaLoader := gojsonschema.NewStringLoader(jsonSchema)
+	extraSpecsLoader := gojsonschema.NewBytesLoader(schema)
+	result, err := gojsonschema.Validate(schemaLoader, extraSpecsLoader)
+	if err != nil {
+		return fmt.Errorf("failed to validate schema: %w", err)
+	}
+	if !result.Valid() {
+		return fmt.Errorf("schema validation failed: %s", result.Errors())
+	}
+	return nil
+}
 
 func newExtraSpecsFromBootstrapData(data params.BootstrapInstance) (*extraSpecs, error) {
 	spec := &extraSpecs{}
+
+	if err := jsonSchemaValidation(data.ExtraSpecs); err != nil {
+		return nil, fmt.Errorf("failed to validate extra specs: %w", err)
+	}
 
 	if len(data.ExtraSpecs) > 0 {
 		if err := json.Unmarshal(data.ExtraSpecs, spec); err != nil {
