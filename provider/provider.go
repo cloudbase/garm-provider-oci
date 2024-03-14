@@ -39,20 +39,18 @@ func NewOciProvider(ctx context.Context, cfgFile string, controllerID string) (*
 		return nil, fmt.Errorf("error creating oci client: %w", err)
 	}
 	return &OciProvider{
-		cfg:          conf,
 		ociCli:       ociCli,
 		controllerID: controllerID,
 	}, nil
 }
 
 type OciProvider struct {
-	cfg          *config.Config
 	ociCli       *client.OciCli
 	controllerID string
 }
 
 func (o *OciProvider) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.ProviderInstance, error) {
-	spec, err := spec.GetRunnerSpecFromBootstrapParams(o.cfg, bootstrapParams, o.controllerID)
+	spec, err := spec.GetRunnerSpecFromBootstrapParams(o.ociCli.Config(), bootstrapParams, o.controllerID)
 	if err != nil {
 		return params.ProviderInstance{}, fmt.Errorf("error getting runner spec: %w", err)
 	}

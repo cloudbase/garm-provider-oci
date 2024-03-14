@@ -51,9 +51,33 @@ func NewOciCli(ctx context.Context, cfg *config.Config) (*OciCli, error) {
 	}, nil
 }
 
+type ClientInterface interface {
+	LaunchInstance(ctx context.Context, request core.LaunchInstanceRequest) (core.LaunchInstanceResponse, error)
+	GetInstance(ctx context.Context, request core.GetInstanceRequest) (core.GetInstanceResponse, error)
+	TerminateInstance(ctx context.Context, request core.TerminateInstanceRequest) (core.TerminateInstanceResponse, error)
+	ListInstances(ctx context.Context, request core.ListInstancesRequest) (core.ListInstancesResponse, error)
+	InstanceAction(ctx context.Context, request core.InstanceActionRequest) (core.InstanceActionResponse, error)
+}
+
 type OciCli struct {
 	cfg           *config.Config
-	computeClient core.ComputeClient
+	computeClient ClientInterface
+}
+
+func (o *OciCli) Config() *config.Config {
+	return o.cfg
+}
+
+func (o *OciCli) ComputeClient() ClientInterface {
+	return o.computeClient
+}
+
+func (o *OciCli) SetConfig(cfg *config.Config) {
+	o.cfg = cfg
+}
+
+func (o *OciCli) SetComputeClient(computeClient ClientInterface) {
+	o.computeClient = computeClient
 }
 
 func (o *OciCli) CreateInstance(ctx context.Context, spec *spec.RunnerSpec) (core.Instance, error) {
