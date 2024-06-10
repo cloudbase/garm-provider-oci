@@ -56,6 +56,39 @@ const (
 						"type": "string",
 						"description": "A SSH public key"
 					}
+				},
+				"disable_updates": {
+					"type": "boolean",
+					"description": "Disable automatic updates on the VM."
+				},
+				"enable_boot_debug": {
+					"type": "boolean",
+					"description": "Enable boot debug on the VM."
+				},
+				"extra_packages": {
+					"type": "array",
+					"description": "Extra packages to install on the VM.",
+					"items": {
+						"type": "string"
+					}
+				},
+				"runner_install_template": {
+					"type": "string",
+					"description": "This option can be used to override the default runner install template. If used, the caller is responsible for the correctness of the template as well as the suitability of the template for the target OS. Use the extra_context extra spec if your template has variables in it that need to be expanded."
+				},
+				"extra_context": {
+					"type": "object",
+					"description": "Extra context that will be passed to the runner_install_template.",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"pre_install_scripts": {
+					"type": "object",
+					"description": "A map of pre-install scripts that will be run before the runner install script. These will run as root and can be used to prep a generic image before we attempt to install the runner. The key of the map is the name of the script as it will be written to disk. The value is a byte array with the contents of the script.",
+					"additionalProperties": {
+						"type": "string"
+					}
 				}
 			},
 			"additionalProperties": false
@@ -97,10 +130,13 @@ func newExtraSpecsFromBootstrapData(data params.BootstrapInstance) (*extraSpecs,
 }
 
 type extraSpecs struct {
-	Ocpus          float32  `json:"ocpus"`
-	MemoryInGBs    float32  `json:"memory_in_gbs"`
-	BootVolumeSize int64    `json:"boot_volume_size"`
-	SSHPublicKeys  []string `json:"ssh_public_keys"`
+	Ocpus           float32  `json:"ocpus"`
+	MemoryInGBs     float32  `json:"memory_in_gbs"`
+	BootVolumeSize  int64    `json:"boot_volume_size"`
+	SSHPublicKeys   []string `json:"ssh_public_keys"`
+	DisableUpdates  *bool    `json:"disable_updates"`
+	EnableBootDebug *bool    `json:"enable_boot_debug"`
+	ExtraPackages   []string `json:"extra_packages"`
 }
 
 func GetRunnerSpecFromBootstrapParams(cfg *config.Config, data params.BootstrapInstance, controllerID string) (*RunnerSpec, error) {
@@ -122,6 +158,7 @@ func GetRunnerSpecFromBootstrapParams(cfg *config.Config, data params.BootstrapI
 		ControllerID:       controllerID,
 		Tools:              tools,
 		BootstrapParams:    data,
+		ExtraPackages:      extraSpecs.ExtraPackages,
 	}
 
 	spec.MergeExtraSpecs(extraSpecs)
@@ -141,6 +178,9 @@ type RunnerSpec struct {
 	Ocpus              float32
 	MemoryInGBs        float32
 	SSHPublicKeys      []string
+	DisableUpdates     bool
+	ExtraPackages      []string
+	EnableBootDebug    bool
 	Tools              params.RunnerApplicationDownload
 	BootstrapParams    params.BootstrapInstance
 	mux                sync.Mutex
@@ -162,6 +202,12 @@ func (r *RunnerSpec) MergeExtraSpecs(extraSpecs *extraSpecs) {
 	if len(extraSpecs.SSHPublicKeys) > 0 {
 		r.SSHPublicKeys = extraSpecs.SSHPublicKeys
 	}
+	if extraSpecs.DisableUpdates != nil {
+		r.DisableUpdates = *extraSpecs.DisableUpdates
+	}
+	if extraSpecs.EnableBootDebug != nil {
+		r.EnableBootDebug = *extraSpecs.EnableBootDebug
+	}
 }
 
 func (r *RunnerSpec) SetUserData() error {
@@ -182,19 +228,17 @@ func (r *RunnerSpec) SetUserData() error {
 }
 
 func (r *RunnerSpec) ComposeUserData() ([]byte, error) {
+	bootstrapParams := r.BootstrapParams
+	bootstrapParams.UserDataOptions.DisableUpdatesOnBoot = r.DisableUpdates
+	bootstrapParams.UserDataOptions.ExtraPackages = r.ExtraPackages
+	bootstrapParams.UserDataOptions.EnableBootDebug = r.EnableBootDebug
 	switch r.BootstrapParams.OSType {
-	case params.Linux:
-		udata, err := cloudconfig.GetCloudConfig(r.BootstrapParams, r.Tools, r.BootstrapParams.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate userdata: %w", err)
-		}
-		return []byte(udata), nil
-	case params.Windows:
-		udata, err := cloudconfig.GetCloudConfig(r.BootstrapParams, r.Tools, r.BootstrapParams.Name)
+	case params.Linux, params.Windows:
+		udata, err := cloudconfig.GetCloudConfig(bootstrapParams, r.Tools, bootstrapParams.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate userdata: %w", err)
 		}
 		return []byte(udata), nil
 	}
-	return nil, fmt.Errorf("unsupported OS type for cloud config: %s", r.BootstrapParams.OSType)
+	return nil, fmt.Errorf("unsupported OS type for cloud config: %s", bootstrapParams.OSType)
 }
