@@ -162,7 +162,9 @@ func GetRunnerSpecFromBootstrapParams(cfg *config.Config, data params.BootstrapI
 	}
 
 	spec.MergeExtraSpecs(extraSpecs)
-	spec.SetUserData()
+	if err := spec.SetUserData(); err != nil {
+		return nil, fmt.Errorf("error setting extra specs: %w", err)
+	}
 
 	return spec, nil
 }

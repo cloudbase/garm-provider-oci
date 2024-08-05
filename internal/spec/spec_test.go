@@ -172,6 +172,7 @@ func TestGetRunnerSpecFromBootstrapParams(t *testing.T) {
 		return Mocktools, nil
 	}
 	data := params.BootstrapInstance{
+		OSType: params.Linux,
 		ExtraSpecs: json.RawMessage(`{
 			"ocpus": 2,
 			"memory_in_gbs": 8,
@@ -213,6 +214,7 @@ func TestGetRunnerSpecFromBootstrapParams(t *testing.T) {
 
 	spec, err := GetRunnerSpecFromBootstrapParams(config, data, "MockControllerID")
 	assert.Nil(t, err)
+	spec.UserData = ""
 	assert.Equal(t, ExpectedRunnerSpec, spec)
 }
 
