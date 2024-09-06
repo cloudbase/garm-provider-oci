@@ -19,7 +19,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cloudbase/garm-provider-common/execution"
+	execution "github.com/cloudbase/garm-provider-common/execution/v0.1.0"
 	"github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-oci/config"
 	"github.com/cloudbase/garm-provider-oci/internal/client"
@@ -28,6 +28,8 @@ import (
 )
 
 var _ execution.ExternalProvider = &OciProvider{}
+
+var Version = "v0.0.0-unknown"
 
 func NewOciProvider(ctx context.Context, cfgFile string, controllerID string) (*OciProvider, error) {
 	conf, err := config.NewConfig(cfgFile)
@@ -104,4 +106,8 @@ func (o *OciProvider) Stop(ctx context.Context, instance string, force bool) err
 
 func (o *OciProvider) Start(ctx context.Context, instance string) error {
 	return o.ociCli.StartInstance(ctx, instance)
+}
+
+func (o *OciProvider) GetVersion(ctx context.Context) string {
+	return Version
 }
