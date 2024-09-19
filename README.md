@@ -92,7 +92,7 @@ To this end, this provider supports the following extra specs schema:
             "description": "Memory in GBs"
         },
         "boot_volume_size": {
-            "type": "number",
+            "type": "integer",
             "description": "Boot volume size in GB"
         },
         "ssh_public_keys": {
