@@ -3,7 +3,7 @@ module github.com/cloudbase/garm-provider-oci
 go 1.24.0
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/cloudbase/garm-provider-common v0.1.8-0.20251001105909-bbcacae60e7c
 	github.com/invopop/jsonschema v0.13.0
 	github.com/oracle/oci-go-sdk/v49 v49.2.0
