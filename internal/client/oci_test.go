@@ -26,6 +26,7 @@ import (
 	"github.com/oracle/oci-go-sdk/v49/common"
 	"github.com/oracle/oci-go-sdk/v49/core"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestCreateInstance(t *testing.T) {
@@ -434,4 +435,98 @@ func TestFindInstanceByTags(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, &expectedInstance, instance)
+}
+
+func TestCreateInstancePreemptible(t *testing.T) {
+	ctx := context.Background()
+	cfg := &config.Config{
+		AvailabilityDomain: "ad",
+		CompartmentId:      "compartment",
+		SubnetID:           "subnet",
+		NsgID:              "nsg",
+		TenancyID:          "tenancy",
+		UserID:             "user",
+		Region:             "region",
+		Fingerprint:        "fingerprint",
+		PrivateKeyPath:     "private_key_path",
+	}
+	mockComputeClient := new(MockComputeClient)
+	ociCli := &OciCli{
+		computeClient: mockComputeClient,
+		cfg:           cfg,
+	}
+	runnerSpec := &spec.RunnerSpec{
+		AvailabilityDomain: "ad",
+		CompartmentID:      "compartment",
+		SubnetID:           "subnet",
+		NsgID:              "nsg",
+		Preemptible:        true,
+	}
+	mockComputeClient.On("LaunchInstance", ctx, mock.MatchedBy(func(req core.LaunchInstanceRequest) bool {
+		pcfg := req.LaunchInstanceDetails.PreemptibleInstanceConfig
+		if pcfg == nil {
+			return false
+		}
+		_, isTerminate := pcfg.PreemptionAction.(core.TerminatePreemptionAction)
+		return isTerminate
+	})).Return(core.LaunchInstanceResponse{}, nil)
+
+	_, err := ociCli.CreateInstance(ctx, runnerSpec)
+
+	assert.Nil(t, err)
+	mockComputeClient.AssertExpectations(t)
+}
+
+func TestDeleteInstanceNotFoundByName(t *testing.T) {
+	ctx := context.Background()
+	cfg := &config.Config{
+		AvailabilityDomain: "ad",
+		CompartmentId:      "compartment",
+		SubnetID:           "subnet",
+		NsgID:              "nsg",
+		TenancyID:          "tenancy",
+		UserID:             "user",
+		Region:             "region",
+		Fingerprint:        "fingerprint",
+		PrivateKeyPath:     "private_key_path",
+	}
+	mockComputeClient := new(MockComputeClient)
+	ociCli := &OciCli{
+		computeClient: mockComputeClient,
+		cfg:           cfg,
+	}
+	mockComputeClient.On("ListInstances", ctx, core.ListInstancesRequest{
+		CompartmentId: &cfg.CompartmentId,
+	}).Return(core.ListInstancesResponse{Items: []core.Instance{}}, nil)
+
+	err := ociCli.DeleteInstance(ctx, "garm-missing")
+
+	assert.Nil(t, err)
+}
+
+func TestGetInstanceNotFoundByName(t *testing.T) {
+	ctx := context.Background()
+	cfg := &config.Config{
+		AvailabilityDomain: "ad",
+		CompartmentId:      "compartment",
+		SubnetID:           "subnet",
+		NsgID:              "nsg",
+		TenancyID:          "tenancy",
+		UserID:             "user",
+		Region:             "region",
+		Fingerprint:        "fingerprint",
+		PrivateKeyPath:     "private_key_path",
+	}
+	mockComputeClient := new(MockComputeClient)
+	ociCli := &OciCli{
+		computeClient: mockComputeClient,
+		cfg:           cfg,
+	}
+	mockComputeClient.On("ListInstances", ctx, core.ListInstancesRequest{
+		CompartmentId: &cfg.CompartmentId,
+	}).Return(core.ListInstancesResponse{Items: []core.Instance{}}, nil)
+
+	_, err := ociCli.GetInstance(ctx, "garm-missing")
+
+	assert.NotNil(t, err)
 }

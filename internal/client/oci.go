@@ -112,6 +112,11 @@ func (o *OciCli) CreateInstance(ctx context.Context, spec *spec.RunnerSpec) (cor
 			},
 		},
 	}
+	if spec.Preemptible {
+		req.LaunchInstanceDetails.PreemptibleInstanceConfig = &core.PreemptibleInstanceConfigDetails{
+			PreemptionAction: core.TerminatePreemptionAction{},
+		}
+	}
 	response, err := o.computeClient.LaunchInstance(ctx, req)
 	if err != nil {
 		return core.Instance{}, fmt.Errorf("error creating instance: %w", err)
@@ -134,6 +139,9 @@ func (o *OciCli) GetInstance(ctx context.Context, instanceID string) (core.Insta
 				return core.Instance{}, fmt.Errorf("instance not found")
 			}
 			return core.Instance{}, fmt.Errorf("failed to determine instance: %w", err)
+		}
+		if tmp == nil || tmp.Id == nil {
+			return core.Instance{}, fmt.Errorf("instance not found")
 		}
 		inst = *tmp.Id
 	}
@@ -163,6 +171,10 @@ func (o *OciCli) DeleteInstance(ctx context.Context, instanceID string) error {
 				return nil
 			}
 			return fmt.Errorf("failed to determine instance: %w", err)
+		}
+		if tmp == nil || tmp.Id == nil {
+			// The instance was never created (or already removed); nothing to delete.
+			return nil
 		}
 		inst = *tmp.Id
 	}
@@ -229,12 +241,16 @@ func (o *OciCli) FindInstanceByTags(ctx context.Context, tags map[string]string)
 	}
 	for _, instance := range computeInstances.Items {
 		if instance.LifecycleState != core.InstanceLifecycleStateTerminated {
+			match := true
 			for key, value := range tags {
 				if instance.FreeformTags[key] != value {
-					return nil, nil
+					match = false
+					break
 				}
 			}
-			return &instance, nil
+			if match {
+				return &instance, nil
+			}
 		}
 	}
 	return nil, nil
