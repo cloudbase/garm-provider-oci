@@ -87,6 +87,7 @@ type extraSpecs struct {
 	DisableUpdates  bool     `json:"disable_updates,omitempty" jsonschema:"description=Disable automatic updates on the VM."`
 	EnableBootDebug bool     `json:"enable_boot_debug,omitempty" jsonschema:"description=Enable boot debug on the VM."`
 	ExtraPackages   []string `json:"extra_packages,omitempty" jsonschema:"description=Extra packages to install on the VM."`
+	Preemptible     bool     `json:"preemptible,omitempty" jsonschema:"description=Launch instances as preemptible (cheaper, can be reclaimed by OCI at any time)."`
 	// The Cloudconfig struct from common package
 	cloudconfig.CloudConfigSpec
 }
@@ -135,6 +136,7 @@ type RunnerSpec struct {
 	DisableUpdates     bool
 	ExtraPackages      []string
 	EnableBootDebug    bool
+	Preemptible        bool
 	Tools              params.RunnerApplicationDownload
 	BootstrapParams    params.BootstrapInstance
 	mux                sync.Mutex
@@ -161,6 +163,9 @@ func (r *RunnerSpec) MergeExtraSpecs(extraSpecs *extraSpecs) {
 	}
 	if extraSpecs.EnableBootDebug {
 		r.EnableBootDebug = extraSpecs.EnableBootDebug
+	}
+	if extraSpecs.Preemptible {
+		r.Preemptible = extraSpecs.Preemptible
 	}
 }
 

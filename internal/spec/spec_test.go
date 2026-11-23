@@ -432,3 +432,43 @@ func TestMergeExtraSpecs(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeExtraSpecsPreemptible(t *testing.T) {
+	specWithPreemptible := &RunnerSpec{}
+	specWithPreemptible.MergeExtraSpecs(&extraSpecs{Preemptible: true})
+	assert.True(t, specWithPreemptible.Preemptible)
+
+	specDefault := &RunnerSpec{}
+	specDefault.MergeExtraSpecs(&extraSpecs{})
+	assert.False(t, specDefault.Preemptible)
+}
+
+func TestGetRunnerSpecFromBootstrapParamsPreemptible(t *testing.T) {
+	Mocktools := params.RunnerApplicationDownload{
+		OS:           common.String("linux"),
+		Architecture: common.String("amd64"),
+		DownloadURL:  common.String("MockURL"),
+		Filename:     common.String("garm-runner"),
+	}
+	DefaultToolFetch = func(osType params.OSType, osArch params.OSArch, tools []params.RunnerApplicationDownload) (params.RunnerApplicationDownload, error) {
+		return Mocktools, nil
+	}
+	data := params.BootstrapInstance{
+		OSType:     params.Linux,
+		ExtraSpecs: json.RawMessage(`{"preemptible": true}`),
+	}
+	cfg := &config.Config{
+		AvailabilityDomain: "MockAvailabilityDomain",
+		CompartmentId:      "MockCompartmentId",
+		SubnetID:           "MockSubnetID",
+		NsgID:              "MockNsgID",
+		TenancyID:          "MockTenancyID",
+		UserID:             "MockUserID",
+		Region:             "MockRegion",
+		Fingerprint:        "MockFingerprint",
+		PrivateKeyPath:     "MockPrivateKeyPath",
+	}
+	spec, err := GetRunnerSpecFromBootstrapParams(cfg, data, "MockControllerID")
+	assert.Nil(t, err)
+	assert.True(t, spec.Preemptible)
+}
